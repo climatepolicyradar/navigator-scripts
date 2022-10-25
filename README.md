@@ -130,9 +130,14 @@ Setup up `AWS_PROFILE`, if using the staging / dev environment then `AWS_PROFILE
 
 ```
 aws stepfunctions list-state-machines
+# Look for an arn e.g. arn:aws:states:eu-west-2:073457443605:stateMachine:stateMachine-staging-pipeline-07565ff
 
 # Select the required `stateMachineArn` from above, then
-aws stepfunctions list-executions --state-machine-arn <arn-from-above>
+aws stepfunctions list-executions --state-machine-arn arn:aws:states:eu-west-2:073457443605:stateMachine:stateMachine-staging-pipeline-07565ff
+
+# Get the 3 most recent executions
+aws stepfunctions list-executions --state-machine-arn arn:aws:states:eu-west-2:073457443605:stateMachine:stateMachine-staging-pipeline-07565ff --query 'reverse(sort_by(executions,& startDate))[0:3]'
+
 
 # Select the required `executionArn` from the above, then
 aws stepfunctions get-execution-history --execution-arn <arn-from-above>
@@ -142,19 +147,33 @@ aws stepfunctions get-execution-history --execution-arn <arn-from-above>
 ## 2. Are there any jobs left in the queue
 
 ```
-
+# List all job queues
 aws batch describe-job-queues
+
+# See if there is anything in the queue
 aws batch list-jobs --job-queue testQueue-8864398
+
+# Describe job 71cb58b5-64dc-4eb3-ae39-e5ee94e2bdb4
 aws batch describe-jobs --jobs 71cb58b5-64dc-4eb3-ae39-e5ee94e2bdb4
 ```
 
 
 ## 3. The state of the S3 buckets
 ```
+# input to the SFN / Ingest input
 aws s3 cp s3://cpr-dev-data-pipeline-cache/input/docs_test_subset.json /tmp && cat /tmp/docs_test_subset.json | jq
-aws s3 ls s3://cpr-dev-data-pipeline-cache/embeddings_input/
+
+# Ingest output / Parser input
 aws s3 ls s3://cpr-dev-data-pipeline-cache/parser_input/
+
+# Parser output / Embeddings input
+aws s3 ls s3://cpr-dev-data-pipeline-cache/embeddings_input/
+
+# Embeddings output /  Indexer input
+aws s3 ls s3://cpr-dev-data-pipeline-cache/indexer_input/
+
 ```
+
 
 
 ----
