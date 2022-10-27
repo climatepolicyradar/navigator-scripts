@@ -122,6 +122,21 @@ Simples:
 nav-ecr-status.sh
 ```
 
+## 7. Push a local Docker image to ECR
+
+This should only be done to sandbox - as the other ECR repositories have images pushed in CI only.
+
+The example below was used for running a front end with App Runner. This pushes a local image called `navigator_frontend:latest` to the remote ECR registry in `${DOCKER_REGISTRY}` renamed to `cclw:latest` ready to be used by App Runner
+
+```
+export AWS_PROFILE=sandbox
+export DOCKER_REGISTRY=281621126254.dkr.ecr.eu-west-1.amazonaws.com
+
+aws ecr get-login-password --region eu-west-1 |  docker login --username AWS --password-stdin "${DOCKER_REGISTRY}"
+docker tag navigator_frontend:latest  ${DOCKER_REGISTRY}/cclw:latest
+docker push ${DOCKER_REGISTRY}/cclw:latest
+```
+
 # Use-Cases - Pipeline
 
 ## 1. View the state of a StepFunction execution
