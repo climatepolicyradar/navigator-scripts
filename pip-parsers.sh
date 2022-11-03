@@ -1,11 +1,7 @@
 #!/bin/bash
-# 1666196298769,
-# 1667490915000
-#
-# 	Last event time 
-# parser_job-177eea0/default/50b3476f458448b997000e5de9538c2e	
-# 2022-10-21 23:10:46 (UTC+01:00)
-# Create: 2022-10-21 23:06:57 (UTC+01:00)
+
+# This script will create a "logs" directory underneath where it is run
+# to store the logs
 
 get_log() {
     aws logs get-log-events \
@@ -16,23 +12,32 @@ get_log() {
     jq -c ".[] | (.message)"
 }
 
-HOUR_AGO=$(python -c "from datetime import datetime; n = int(round(datetime.now().timestamp())); print(1000*(n-2*60*60))")
+SINCE_DATE=$1
+[ -z ${SINCE_DATE} ] && (echo "need a ISO datetime as an arg"; exit 1)
+
+START=$(python -c "import dateutil.parser; print( int( round( dateutil.parser.parse(\"${SINCE_DATE}\").timestamp() * 1000 ) ) )")
+echo "Start : ${SINCE_DATE} / ${START}"
+
 output=$(mktemp)
 
 aws logs describe-log-streams \
     --region ${AWS_REGION} \
     --order-by LastEventTime \
     --log-group-name /aws/batch/job \
-    --query "logStreams[?creationTime > \`${HOUR_AGO}\`].{logStreamName: logStreamName}" | \
+    --query "logStreams[?creationTime > \`${START}\`].{logStreamName: logStreamName}" | \
     jq ".[] | (.logStreamName)"  | \
     tr -d '"' > $output
 
 LOGS=$PWD/logs
 [ -d $LOGS ] || mkdir $LOGS
-echo Writting to $LOGS
+TOTAL=$(wc -l $output)
+echo "Writing $TOTAL file(s) to $LOGS"
+echo 
+
 for name in $(cat $output) 
 do
     LOG="$LOGS/$(echo $name | sed -e 's/\//_/g')"
+    grep -n $name $output 
     echo $name > $LOG
     get_log $name >> $LOG
 done
