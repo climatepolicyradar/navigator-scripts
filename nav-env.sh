@@ -1,14 +1,7 @@
 #!/bin/bash
 
 ###############################################################################
-# nav-env
-#
-# In the main `navigator` repo this will setup the environemnt within the 
-# curent shell (if this file is sourced)
-#
-# EXAMPLE:
-#   source nav-env.sh
-#
+# See: docs/nav-env.md
 ###############################################################################
 
 cd $(git rev-parse --show-toplevel)
