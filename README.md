@@ -29,6 +29,23 @@ git checkout git@github.com:climatepolicyradar/navigator-scripts.git
 export PATH=$PATH:$HOME/navigator-scripts
 ```
 
+# Scripts with documentation
+
+## Docker
+ - [dkr-copy-volume.sh](docs/dkr-copy-volume.md)
+ - [dkr-rm-old-deploy-images.sh](docs/dkr-rm-old-deploy-images.md)
+
+## Navigator
+ - [nav-build-status.sh](docs/nav-build-status.md)
+ - [nav-ecr-status.sh](docs/nav-ecr-status.md)
+ - [nav-env.sh](docs/nav-env.md)
+ - [nav-reset.sh](docs/nav-reset.md)
+
+## Data Pipeline
+ - [pip-execution-error.sh](docs/pip-execution-error.md)
+ - [pip-list-executions.sh](docs/pip-list-executions.md)
+ - [pip-show-execution.sh](docs/pip-show-execution.md)
+
 # Use-Cases - Backend
 
 ## 1. Run backend code locally and not in docker
@@ -114,12 +131,24 @@ Simples:
 nav-build-status.sh
 ```
 
-## 6. View the latest ECR images for pipeline
+## 7. Run a python script against staging (e.g. initial_data.py)
 
-Simples:
+There are certain times when you will want to run a python script against staging or in some circumstances, production. 
+It should go without saying - any script run should have been reviewed and in a [CPR repository](https://github.com/climatepolicyradar.org)
+
+Before proceeding ensure that your `AWS_PROFILE` matches the pulumi stack you have selected. Then:
 
 ```
-nav-ecr-status.sh
+source nav-env.sh                       ## Use your default env vars
+nav-stack-connect.sh                    ## Connect to the stack you've selected in pulumi - see docs/nav-stack-connect.md
+source ~/.aws/${AWS_PROFILE}_vars.sh    ## The exact file will be shown in the output of the above script
+```
+
+That should be your environment setup and ready to run the script. For example the `initial_data.py` script to populate the database
+with the default values, you can now run from the `backend` directory:
+
+```
+PYTHONPATH=$PWD python app/initial_data.py skip-wait
 ```
 
 # Use-Cases - Pipeline
@@ -175,16 +204,15 @@ aws s3 ls s3://cpr-dev-data-pipeline-cache/indexer_input/
 ```
 
 
+## 4. View the latest ECR images for pipeline
+
+Simples:
+
+```
+nav-ecr-status.sh
+```
 
 ----
-
-# List of Commands
-
-## **Auto generating a migration**, set up and activate a `pyenv` environment with 
-
-```
-alembic revision --autogenerate -m
-```
 
 # Other useful tools
 
