@@ -1,5 +1,16 @@
+"""
+Take a Document-Family-Collection input CSV & process it for import.
+
+Performs the following actions:
+  - Basic validation of the input data for consistency
+  - Generation of Document IDs
+  - Generation of Family IDs
+  - Generation of Collection IDs when required
+  - Generation of Document slugs
+  - Generation of Family Slugs
+"""
+
 import csv
-import json
 import sys
 from collections import defaultdict
 from pathlib import Path
@@ -58,16 +69,17 @@ def _read_existing_data(
     with open(csv_file_path) as csv_file:
         reader = csv.DictReader(csv_file)
         from pprint import pprint
+
         pprint(reader.fieldnames)
-        assert set(REQUIRED_COLUMNS).issubset(set(reader.fieldnames))
+        assert set(REQUIRED_COLUMNS).issubset(set(reader.fieldnames or set()))
         row_count = 0
         errors = False
 
         for row in reader:
             row_count += 1
-            if not row['Category'].strip():
+            if not row["Category"].strip():
                 print(f"Error on row {row_count}: no category specified")
-                errors = True 
+                errors = True
 
             if not row["ID"].strip():
                 print(f"Error on row {row_count}: no ID specified")
@@ -75,24 +87,26 @@ def _read_existing_data(
 
             if not row["Document title"].strip():
                 print(f"Error on row {row_count}: not document title specified")
-                errors = True 
-            
-            family_name = row.get("Family name").strip()
+                errors = True
+
+            family_name = row.get("Family name", "").strip()
             if not family_name:
                 print(f"Error on row {row_count}: family name is empty")
                 errors = True
-            
+
             # If CPR Document Slug is already set, look for existing info & validate it
-            if (cpr_document_slug := row.get("CPR Document Slug")):
+            if cpr_document_slug := row.get("CPR Document Slug", ""):
                 cpr_document_slug = cpr_document_slug.strip()
                 if cpr_document_slug in existing_slugs:
-                    print(f"Error on row {row_count}: slug for document already exists!")
+                    print(
+                        f"Error on row {row_count}: document slug already exists!"
+                    )
                     errors = True
                 else:
-                    existing_doc_slugs.add(cpr_document_slug)
-                
+                    existing_slugs.add(cpr_document_slug)
+
             # If CPR Document ID is already set, look for existing info & validate it
-            if (cpr_document_id := row.get("CPR Document ID")):
+            if cpr_document_id := row.get("CPR Document ID", ""):
                 cpr_document_id = cpr_document_id.strip()
                 if cpr_document_id in existing_doc_info:
                     print(f"Error on row {row_count}: ID for row already exists!")
@@ -101,43 +115,55 @@ def _read_existing_data(
                     existing_doc_info[cpr_document_id] = cpr_document_slug
 
             # If CPR Family ID is already set, look for existing info & validate it
-            if (cpr_family_id := row.get("CPR Family ID")):
+            if cpr_family_id := row.get("CPR Family ID", ""):
                 cpr_family_id = cpr_family_id.strip()
-                if (cpr_family_info := existing_family_info.get(cpr_family_id)):
-                    # We've seen this family before, so make sure the values we already have are consistent
+                if cpr_family_info := existing_family_info.get(cpr_family_id):
+                    # We've seen this family before, so make sure the values we
+                    # already have are consistent
                     if family_name != cpr_family_info["Family name"]:
-                        print(f"Error on row {row_count}: Multiple names for family id {cpr_family_id}")
+                        print(
+                            f"Error on row {row_count}: Multiple names for family "
+                            f"id {cpr_family_id}"
+                        )
                         errors = True
                 else:
-                    # We've not seen this family before, so make sure the slug is unique if set & store info
-                    if (cpr_family_slug := row.get("CPR Family Slug")):
+                    # We've not seen this family before, so make sure the slug is
+                    # unique if set & store info
+                    if cpr_family_slug := row.get("CPR Family Slug", ""):
                         cpr_family_slug = cpr_family_slug.strip()
                         if cpr_document_slug in existing_slugs:
-                            print(f"Error on row {row_count}: slug for family already exists!")
+                            print(
+                                f"Error on row {row_count}: family slug already exists!"
+                            )
                             errors = True
                         else:
                             existing_slugs.add(cpr_document_slug)
-                    
+
                     existing_family_info[cpr_family_id] = {
-                        "Family name": row.get("Family name").strip(),
+                        "Family name": row.get("Family name", "").strip(),
                         "CPR Family Slug": cpr_family_slug,
                     }
 
-            # TODO: Make sure we don't have duplicated collection IDs by keeping track of the mapping
-            #       between "Collection name" and "CPR Collection ID"
+            # TODO: Make sure we don't have duplicated collection IDs by keeping
+            #       track of the mapping between "Collection name" and
+            #       "CPR Collection ID"
 
         if errors:
             sys.exit(10)
 
 
-def _generate_slug(base, lookup, attempts=100):
-    # TODO: fail after attempts are exhausted
-    # TODO: extend length if attempts are exhausted
-    suffix = str(uuid4())[:4]
+def _generate_slug(base, lookup, attempts=100, suffix_length=4):
+    # TODO: try to extend suffix length if attempts are exhausted
+    suffix = str(uuid4())[:suffix_length]
+    count = 0
     while (slug := f"{base}_{suffix}") in lookup:
-        suffix = str(uuid4())[:4]
+        count += 1
+        suffix = str(uuid4())[:suffix_length]
+        if count > attempts:
+            raise RuntimeError(
+                f"Failed to generate a slug for {base} after {attempts} attempts."
+            )
     return slug
-
 
 
 def _process_csv(csv_file_path: Path) -> list[dict[str, str]]:
@@ -153,14 +179,14 @@ def _process_csv(csv_file_path: Path) -> list[dict[str, str]]:
     )
 
     family_lookup = defaultdict(lambda: defaultdict(dict))
-    collection_lookup = defaultdict(dict) 
+    collection_lookup = defaultdict(dict)
     documents = []
     with open(csv_file_path) as csv_file:
         reader = csv.DictReader(csv_file)
         row_count = 0
         for row in reader:
             row_count += 1
-            category = row['Category'].strip().lower()
+            category = row["Category"].strip().lower()
             action_id = row["ID"].strip()
             doc_id = row["Document ID"].strip() or "0"
             doc_title = row["Document title"].strip()
@@ -176,7 +202,7 @@ def _process_csv(csv_file_path: Path) -> list[dict[str, str]]:
                 slug_base = slugify(doc_title)
                 cpr_document_slug = _generate_slug(slug_base, existing_slugs)
 
-            # Populate Family ID & Slug if necessary 
+            # Populate Family ID & Slug if necessary
             family_name = row["Family name"].strip().lower()
             # A family comes from a single CCLW "action ID"
             action_families = family_lookup[action_id]
@@ -200,19 +226,23 @@ def _process_csv(csv_file_path: Path) -> list[dict[str, str]]:
                 collection_id = action_collections.get(collection_name)
                 if collection_id is None:
                     print(f"calculating cpr collection id for row {row_count}")
-                    collection_id = f"CCLW.collection.{action_id}.{len(action_collections)}"
+                    collection_id = (
+                        f"CCLW.collection.{action_id}.{len(action_collections)}"
+                    )
                     action_collections[collection_name] = collection_id
 
-            documents.append({
-                **row,
-                **{
-                    "CPR Document ID": cpr_document_id,
-                    "CPR Document Slug": cpr_document_slug,
-                    "CPR Family ID": family_id,
-                    "CPR Family Slug": family_slug,
-                    "CPR Collection ID": collection_id,
-                },
-            })
+            documents.append(
+                {
+                    **row,
+                    **{
+                        "CPR Document ID": cpr_document_id,
+                        "CPR Document Slug": cpr_document_slug,
+                        "CPR Family ID": family_id,
+                        "CPR Family Slug": family_slug,
+                        "CPR Collection ID": collection_id,
+                    },
+                }
+            )
 
     return documents
 
@@ -232,6 +262,6 @@ def main():
     _write_file(processed_rows, Path(f"{sys.argv[1]}_processed"))
     print("DONE")
 
+
 if __name__ == "__main__":
     main()
-
