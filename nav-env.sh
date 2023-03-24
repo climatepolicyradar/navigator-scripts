@@ -4,6 +4,7 @@
 # See: docs/nav-env.md
 ###############################################################################
 
+# cd "${NAVIGATOR_CODE_ROOT}/navigator-backend"
 cd $(git rev-parse --show-toplevel)
 
 if [ ! -f .env ] 
