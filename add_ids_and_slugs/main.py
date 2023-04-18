@@ -21,34 +21,25 @@ from slugify import slugify
 REQUIRED_COLUMNS = [
     "ID",
     "Document ID",
-    "CCLW Description",
-    "Part of collection?",
-    "Create new family/ies?",
-    "Collection ID",
     "Collection name",
     "Collection summary",
     "Document title",
     "Family name",
     "Family summary",
-    "Family ID",
     "Document role",
-    "Applies to ID",
+    "Document variant",
     "Geography ISO",
     "Documents",
     "Category",
-    "Events",
     "Sectors",
     "Instruments",
     "Frameworks",
     "Responses",
     "Natural Hazards",
     "Document Type",
-    "Year",
     "Language",
     "Keywords",
     "Geography",
-    "Parent Legislation",
-    "Comment",
 ]
 EXTRA_COLUMNS = [
     "CPR Document ID",
@@ -56,6 +47,7 @@ EXTRA_COLUMNS = [
     "CPR Collection ID",
     "CPR Family Slug",
     "CPR Document Slug",
+    "CPR Document Status",
 ]
 
 
@@ -68,13 +60,15 @@ def _read_existing_data(
     # First pass to load existing IDs/Slugs
     with open(csv_file_path) as csv_file:
         reader = csv.DictReader(csv_file)
-        from pprint import pprint
 
-        pprint(reader.fieldnames)
-        assert set(REQUIRED_COLUMNS).issubset(set(reader.fieldnames or set()))
+        # Validate basic file structure
+        if not set(REQUIRED_COLUMNS).issubset(set(reader.fieldnames or set())):
+            missing = set(REQUIRED_COLUMNS) - set(reader.fieldnames or set())
+            print(f"Error reading file, required DFC columns are missing: {missing}")
+            sys.exit(1)
+
         row_count = 0
         errors = False
-
         for row in reader:
             row_count += 1
             if not row["Category"].strip():
@@ -86,7 +80,7 @@ def _read_existing_data(
                 errors = True
 
             if not row["Document title"].strip():
-                print(f"Error on row {row_count}: not document title specified")
+                print(f"Error on row {row_count}: no document title specified")
                 errors = True
 
             family_name = row.get("Family name", "").strip()
@@ -131,13 +125,13 @@ def _read_existing_data(
                     # unique if set & store info
                     if cpr_family_slug := row.get("CPR Family Slug", ""):
                         cpr_family_slug = cpr_family_slug.strip()
-                        if cpr_document_slug in existing_slugs:
+                        if cpr_family_slug in existing_slugs:
                             print(
                                 f"Error on row {row_count}: family slug already exists!"
                             )
                             errors = True
                         else:
-                            existing_slugs.add(cpr_document_slug)
+                            existing_slugs.add(cpr_family_slug)
 
                     existing_family_info[cpr_family_id] = {
                         "Family name": row.get("Family name", "").strip(),
@@ -196,39 +190,55 @@ def _process_csv(csv_file_path: Path) -> list[dict[str, str]]:
                 print(f"calculating cpr doc id for row {row_count}")
                 cpr_document_id = f"CCLW.{category}.{action_id}.{doc_id}"
 
-            # If CPR Document Slug doe not already exist, populate it
+            # If CPR Document Slug does not already exist, populate it
             if not (cpr_document_slug := row.get("CPR Document Slug", "").strip()):
                 print(f"calculating doc slug for row {row_count}")
                 slug_base = slugify(doc_title)
                 cpr_document_slug = _generate_slug(slug_base, existing_slugs)
 
-            # Populate Family ID & Slug if necessary
-            family_name = row["Family name"].strip().lower()
             # A family comes from a single CCLW "action ID"
+            family_name = row["Family name"].strip().lower()
             action_families = family_lookup[action_id]
             family_count = len(action_families)
-            if (family_id := action_families[family_name].get("id")) is None:
+
+            # Populate Family ID & Slug if necessary
+            existing_cpr_family_id = row.get("CPR Family ID", "").strip()
+            already_generated_family_id = action_families[family_name].get("id")
+            family_id = existing_cpr_family_id or already_generated_family_id
+            if not family_id:
                 print(f"calculating cpr family id for row {row_count}")
                 family_id = f"CCLW.family.{action_id}.{family_count}"
                 action_families[family_name]["id"] = family_id
-            if (family_slug := action_families[family_name].get("slug")) is None:
+            else:
+                action_families[family_name]["id"] = family_id
+
+            existing_cpr_family_slug = row.get("CPR Family Slug", "").strip()
+            already_generated_family_slug = action_families[family_name].get("slug")
+            family_slug = existing_cpr_family_slug or already_generated_family_slug
+            if not family_slug:
                 print(f"calculating cpr family slug for row {row_count}")
                 slug_base = slugify(family_name)
                 family_slug = _generate_slug(slug_base, existing_slugs)
+                action_families[family_name]["slug"] = family_slug
+            else:
                 action_families[family_name]["slug"] = family_slug
 
             # Populate Collection ID if necessary
             collection_name = row["Collection name"].strip().lower()
             collection_id = "N/A"
             if collection_name and collection_name not in {"n/a"}:
-                # A Collection comes from a single CCLW "action ID"
                 action_collections = collection_lookup[action_id]
-                collection_id = action_collections.get(collection_name)
-                if collection_id is None:
+                # A Collection comes from a single CCLW "action ID"
+                existing_cpr_collection_id = row.get("CPR Collection ID", "").strip()
+                already_generated_coll_id = action_collections.get(collection_name)
+                collection_id = existing_cpr_collection_id or already_generated_coll_id
+                if not collection_id:
                     print(f"calculating cpr collection id for row {row_count}")
                     collection_id = (
                         f"CCLW.collection.{action_id}.{len(action_collections)}"
                     )
+                    action_collections[collection_name] = collection_id
+                else:
                     action_collections[collection_name] = collection_id
 
             documents.append(

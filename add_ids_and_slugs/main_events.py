@@ -15,34 +15,25 @@ from typing import Any, Mapping
 REQUIRED_DFC_COLUMNS = [
     "ID",
     "Document ID",
-    "CCLW Description",
-    "Part of collection?",
-    "Create new family/ies?",
-    "Collection ID",
     "Collection name",
     "Collection summary",
     "Document title",
     "Family name",
     "Family summary",
-    "Family ID",
     "Document role",
-    "Applies to ID",
     "Geography ISO",
     "Documents",
     "Category",
-    "Events",
     "Sectors",
     "Instruments",
     "Frameworks",
     "Responses",
     "Natural Hazards",
     "Document Type",
-    "Year",
     "Language",
     "Keywords",
     "Geography",
-    "Parent Legislation",
-    "Comment",
+    "CPR Document Status",
 ]
 EXTRA_DFC_COLUMNS = [
     "CPR Document ID",
@@ -80,10 +71,15 @@ def _read_existing_dfc_data(
     # First pass to load existing IDs/Slugs
     with open(dfc_csv_file_path) as dfc_csv_file:
         dfc_reader = csv.DictReader(dfc_csv_file)
-        assert set(REQUIRED_DFC_COLUMNS).issubset(set(dfc_reader.fieldnames or []))
+
+        # Validate basic file structure
+        if not set(REQUIRED_DFC_COLUMNS).issubset(set(dfc_reader.fieldnames or set())):
+            missing = set(REQUIRED_DFC_COLUMNS) - set(dfc_reader.fieldnames or set())
+            print(f"Error reading file, required DFC columns are missing: {missing}")
+            sys.exit(1)
+
         row_count = 0
         errors = False
-
         for row in dfc_reader:
             row_count += 1
             if not row["Category"].strip():
@@ -189,47 +185,61 @@ def _process_event_data(
 
         for row in event_reader:
             row_count += 1
-            if action_id := row.get("Eventable Id", ""):
-                event_source_type = row.get("Eventable type", "").strip()
-                if not event_source_type or event_source_type != "Legislation":
-                    continue
-                if action_id in action_id_to_family_id:
-                    event_type = row.get("Event type", "")
-                    if event_type.strip():
-                        families_with_events = families_with_events | set(
-                            action_id_to_family_id[action_id]
-                        )
-                    if event_type.strip() == "Passed/Approved":
-                        families_passed_approved = families_passed_approved | set(
-                            action_id_to_family_id[action_id]
-                        )
-
-                    event_id = row.get("Id", "")
-                    event_ids = [
-                        f"CCLW.legislation_event.{event_id}.{i}"
-                        for i, _ in enumerate(action_id_to_family_id[action_id])
-                    ]
-
-                    event_status = "OK"
-                    if len(action_id_to_family_id[action_id]) > 1:
-                        ambiguous_event_info[action_id].append(row)
-                        event_status = "DUPLICATED"
-
-                    family_events.extend(
-                        [
-                            {
-                                **row,
-                                **{
-                                    "CPR Event ID": event_id,
-                                    "CPR Family ID": family_id,
-                                    "Event Status": event_status,
-                                },
-                            }
-                            for (event_id, family_id) in zip(
-                                event_ids, action_id_to_family_id[action_id]
-                            )
-                        ]
+            if row.get("CPR Family ID", "").strip():
+                # We already have this linked to a family ID, so leave it alone
+                family_events.append(row)
+                event_type = row.get("Event type", "")
+                action_id = row.get("Eventable Id", "")
+                if event_type.strip():
+                    families_with_events = families_with_events | set(
+                        action_id_to_family_id[action_id]
                     )
+                if event_type.strip() == "Passed/Approved":
+                    families_passed_approved = families_passed_approved | set(
+                        action_id_to_family_id[action_id]
+                    )
+            else:
+                if action_id := row.get("Eventable Id", ""):
+                    event_source_type = row.get("Eventable type", "").strip()
+                    if not event_source_type or event_source_type != "Legislation":
+                        continue
+                    if action_id in action_id_to_family_id:
+                        event_type = row.get("Event type", "")
+                        if event_type.strip():
+                            families_with_events = families_with_events | set(
+                                action_id_to_family_id[action_id]
+                            )
+                        if event_type.strip() == "Passed/Approved":
+                            families_passed_approved = families_passed_approved | set(
+                                action_id_to_family_id[action_id]
+                            )
+
+                        event_id = row.get("Id", "")
+                        event_ids = [
+                            f"CCLW.legislation_event.{event_id}.{i}"
+                            for i, _ in enumerate(action_id_to_family_id[action_id])
+                        ]
+
+                        event_status = "OK"
+                        if len(action_id_to_family_id[action_id]) > 1:
+                            ambiguous_event_info[action_id].append(row)
+                            event_status = "DUPLICATED"
+
+                        family_events.extend(
+                            [
+                                {
+                                    **row,
+                                    **{
+                                        "CPR Event ID": event_id,
+                                        "CPR Family ID": family_id,
+                                        "Event Status": event_status,
+                                    },
+                                }
+                                for (event_id, family_id) in zip(
+                                    event_ids, action_id_to_family_id[action_id]
+                                )
+                            ]
+                        )
 
         families_without_events = [
             {
