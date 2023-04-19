@@ -16,12 +16,11 @@ do
   json_found=$(grep "${file}.json" full_files)
   npy_found=$(grep "${file}.npy" full_files)
 
-  echo $file, $json_found, $npy_found
+  #echo $file, $json_found, $npy_found
 
   if [ -z $npy_found ]
   then
-    echo aws s3 rm s3://$PREFIX$json_found 
-    aws s3 rm s3://$PREFIX$json_found 
+    echo Orphan: s3://$PREFIX$json_found 
   fi
 done
 
