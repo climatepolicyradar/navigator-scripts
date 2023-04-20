@@ -7,20 +7,20 @@
 PREFIX=cpr-staging-data-pipeline-cache/indexer_input/
 
 # Start of script
-aws s3 ls ${PREFIX} | cut -c 32- | sort > full_files
+#aws s3 ls ${PREFIX} | cut -c 32- | sort > full_files
 # Assumes we have four dots
 cat full_files  | cut -d '.' -f1-4 | sort | uniq > bare_files
 
 for file in $(cat bare_files)
 do
-  json_found=$(grep "${file}.json" full_files)
-  npy_found=$(grep "${file}.npy" full_files)
+  json_found=$(grep "^${file}.json$" full_files)
+  npy_found=$(grep "^${file}.npy$" full_files)
 
-  #echo $file, $json_found, $npy_found
+  #echo "$file, $json_found, |${npy_found}|"
 
   if [ -z $npy_found ]
   then
-    echo Orphan: s3://$PREFIX$json_found 
+    echo Orphan: $file s3://$PREFIX$json_found 
   fi
 done
 
