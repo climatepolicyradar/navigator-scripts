@@ -43,11 +43,10 @@ EXTRA_DFC_COLUMNS = [
     "CPR Document Slug",
 ]
 
-REQUIRED_EVENTS_COLUMNS = [
+REQUIRED_EVENT_COLUMNS = [
     "Id",
     "Eventable type",
     "Eventable Id",
-    "Eventable name",
     "Event type",
     "Title",
     "Description",
@@ -180,7 +179,10 @@ def _process_event_data(
     family_events = []
     with open(event_csv_file_path) as event_csv_file:
         event_reader = csv.DictReader(event_csv_file)
-        assert set(REQUIRED_EVENTS_COLUMNS).issubset(set(event_reader.fieldnames or []))
+        if not set(REQUIRED_EVENT_COLUMNS).issubset(set(event_reader.fieldnames or [])):
+            missing = set(REQUIRED_EVENT_COLUMNS) - set(event_reader.fieldnames or [])
+            print(f"Error reading file, required event columns are missing: {missing}")
+            sys.exit(1)
         row_count = 0
 
         for row in event_reader:
@@ -303,7 +305,7 @@ def _write_file(
     family_events: list[dict[str, str]],
     output_path: Path,
 ) -> None:
-    csv_output_fieldnames = REQUIRED_EVENTS_COLUMNS + EXTRA_EVENTS_COLUMNS
+    csv_output_fieldnames = REQUIRED_EVENT_COLUMNS + EXTRA_EVENTS_COLUMNS
     with open(output_path, "w") as out_csv:
         writer = csv.DictWriter(out_csv, fieldnames=csv_output_fieldnames)
         writer.writeheader()
