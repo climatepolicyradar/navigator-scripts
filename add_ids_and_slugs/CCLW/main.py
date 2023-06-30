@@ -92,9 +92,7 @@ def _read_existing_data(
             if cpr_document_slug := row.get("CPR Document Slug", ""):
                 cpr_document_slug = cpr_document_slug.strip()
                 if cpr_document_slug in existing_slugs:
-                    print(
-                        f"Error on row {row_count}: document slug already exists!"
-                    )
+                    print(f"Error on row {row_count}: document slug already exists!")
                     errors = True
                 else:
                     existing_slugs.add(cpr_document_slug)
@@ -146,7 +144,12 @@ def _read_existing_data(
             sys.exit(10)
 
 
-def _generate_slug(base, lookup, attempts=100, suffix_length=4):
+def _generate_slug(
+    base: str,
+    lookup: set[str],
+    attempts: int = 100,
+    suffix_length: int = 4,
+):
     # TODO: try to extend suffix length if attempts are exhausted
     suffix = str(uuid4())[:suffix_length]
     count = 0
@@ -157,6 +160,7 @@ def _generate_slug(base, lookup, attempts=100, suffix_length=4):
             raise RuntimeError(
                 f"Failed to generate a slug for {base} after {attempts} attempts."
             )
+    lookup.add(slug)
     return slug
 
 
