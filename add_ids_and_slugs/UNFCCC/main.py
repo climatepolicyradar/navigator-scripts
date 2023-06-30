@@ -161,6 +161,7 @@ def _generate_slug(
 
 def _process_csv(
     documents_file_path: Path,
+    row_offset: int,
 ) -> list[dict[str, str]]:
     existing_slugs = set()
     existing_doc_info = {}
@@ -176,7 +177,7 @@ def _process_csv(
     documents = []
     with open(documents_file_path) as csv_file:
         reader = csv.DictReader(csv_file)
-        row_count = 0
+        row_count = 0 + row_offset
         for row in reader:
             row_count += 1
             cpr_document_id = row["CPR Document ID"].strip()
@@ -210,18 +211,18 @@ def _process_csv(
                 else:
                     cpr_family_slug = existing_family_slug
 
-            documents.append(
-                {
-                    **row,
-                    **{
-                        "CPR Document ID": cpr_document_id,
-                        "CPR Document Slug": cpr_document_slug,
-                        "CPR Document Status": "PUBLISHED",
-                        "CPR Family ID": cpr_family_id,
-                        "CPR Family Slug": cpr_family_slug,
+            new_doc = {
+                **row,
+                **{
+                    "CPR Document ID": cpr_document_id,
+                    "CPR Document Slug": cpr_document_slug,
+                    "CPR Document Status": "PUBLISHED",
+                    "CPR Family ID": cpr_family_id,
+                    "CPR Family Slug": cpr_family_slug,
                     },
-                }
-            )
+            }
+            documents.append(new_doc)
+
 
     return documents
 
@@ -237,7 +238,8 @@ def _write_file(processed_rows: list[dict[str, str]], output_path: Path) -> None
 
 def main():
     documents_file_path = Path(sys.argv[1]).absolute()
-    processed_rows = _process_csv(documents_file_path)
+    row_offset = int(sys.argv[2])
+    processed_rows = _process_csv(documents_file_path, row_offset)
     _write_file(processed_rows, Path(f"{sys.argv[1]}_processed"))
     print("DONE")
 
