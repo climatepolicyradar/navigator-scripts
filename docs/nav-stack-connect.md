@@ -1,8 +1,10 @@
 # nav-stack-connect
 
-This script allows you to connect your local PC to the remote RDS instance. 
-This is done by selecting the relevant pulumi stack (hence the name).
-From the `/infra` folder of the `navigator` repo select the stack with, e.g.:
+This script allows you to connect your local PC to the remote RDS instance. This is done by selecting the relevant pulumi stack (hence the name) and running a bash script to create the connection variables.
+- Copy the following bash script from the root folder of the `navigator-scripts` repo to the `navigator-infra/backend` repo and subdirectory
+- Select the stack with the following command and run the script to generate the connection context 
+
+Example commands for the staging environment:
 
 ```
 pulumi stack select staging
@@ -11,7 +13,8 @@ pulumi stack select staging
 Once complete set your AWS_PROFILE to the appropriate account in your environment or when you run the script:
 
 ```
-AWS_PROFILE=dev nav-stack-connect.sh
+chmod +x nav-stack-connect.sh
+AWS_PROFILE=dev ./nav-stack-connect.sh
 ```
 
 When the script runs it will produce two extra `gnome-terminal`s (if you're using a Mac we need to update this):
