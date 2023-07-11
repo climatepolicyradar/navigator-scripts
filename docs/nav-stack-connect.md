@@ -2,7 +2,7 @@
 
 This script allows you to connect your local PC to the remote RDS instance. 
 This is done by selecting the relevant pulumi stack (hence the name).
-From the `/infra` folder of the `navigator` repo select the stack with, e.g.:
+From the `/backend` folder of the `navigator-infra` repo select the stack with, e.g.:
 
 ```
 pulumi stack select staging
