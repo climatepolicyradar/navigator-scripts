@@ -16,9 +16,8 @@ else
   export $(cat .env|grep -v "^#" | xargs)
 
   # Setup the db vars
-  export BACKEND_DATABASE_URL="postgresql://${BACKEND_POSTGRES_USER}:${BACKEND_POSTGRES_PASSWORD}@localhost:5432/${BACKEND_POSTGRES_USER}"
+  export DATABASE_URL="postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@localhost:5432/${POSTGRES_USER}"
   export LOADER_DATABASE_URL=postgresql://${LOADER_POSTGRES_USER}:${LOADER_POSTGRES_PASSWORD}@loader_db:5432/${LOADER_POSTGRES_USER}
-  export DATABASE_URL=${BACKEND_DATABASE_URL}
 
   # Link in the models folder
   [ ! -d $PWD/backend/models ] && ln -s /opt/models/ $PWD/backend/models
