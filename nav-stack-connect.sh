@@ -29,7 +29,6 @@ echo "🔨 Building db connection string..."
 # These values are exported so you can use a script in your current shell
 VAR_FILE=~/.aws/${AWS_PROFILE}_vars.sh
 echo export DATABASE_URL=postgresql://${DB_USER}:${DB_PASS}@localhost:5434/navigator > ${VAR_FILE}
-echo export BACKEND_DATABASE_URL=postgresql://${DB_USER}:${DB_PASS}@localhost:5434/navigator >> ${VAR_FILE}
 echo export SECRET_KEY=$(pulumi config get backend:backend_secret_key) >> ${VAR_FILE}
 echo export SUPERUSER_EMAIL=$(pulumi config get backend:superuser_email) >> ${VAR_FILE}
 echo export SUPERUSER_PASSWORD=$(pulumi config get backend:superuser_password) >> ${VAR_FILE}
