@@ -37,6 +37,7 @@ echo export SUPERUSER_PASSWORD=$(pulumi config get backend:superuser_password) >
 echo export PGUSER=$DB_USER >> ${VAR_FILE}
 echo export PGPASSWORD=$DB_PASS >> ${VAR_FILE}
 echo export PGPORT=5434 >> ${VAR_FILE}
+echo export PGHOST=localhost >> ${VAR_FILE}
 echo export PGDATABASE=${RDS_DB} >> ${VAR_FILE}
 chmod 0600 ${VAR_FILE}
 
