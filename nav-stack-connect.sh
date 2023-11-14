@@ -5,9 +5,26 @@
 ###############################################################################
 
 OUTPUT=$(mktemp)
-SH="gnome-terminal  -- "
 
-if [ -z "${AWS_PROFILE}" ] ; then  echo "no AWS profile selected" ; exit 1 ; fi
+if [ -z "${AWS_PROFILE}" ] ; then  
+    PS3="No AWS_PROFILE set, type one here: "
+
+    select aws_profile in staging prod production q
+    do
+        case $aws_profile in
+            "staging")
+                AWS_PROFILE=$aws_profile; break;;
+            "prod")
+                AWS_PROFILE=$aws_profile; break;;
+            "production")
+                AWS_PROFILE=$aws_profile; break;;
+            "q")
+                exit;;
+            *)
+            echo "Ooops";;
+        esac
+    done
+fi
 
 # Changed to backend for new repo "navigator-infra"
 cd $(git rev-parse --show-toplevel)/backend
@@ -44,8 +61,20 @@ chmod 0600 ${VAR_FILE}
 echo
 echo "🔨 Starting tunnel, using ${BASTION_TARGET}..."
 
-${SH} aws --profile ${AWS_PROFILE} --region eu-west-1 ssm start-session --target ${BASTION_TARGET}
-${SH} aws --profile ${AWS_PROFILE} --region eu-west-1 ssm start-session --target ${BASTION_TARGET} --document-name AWS-StartPortForwardingSession --parameters '{"portNumber":["5432"],"localPortNumber":["5434"]}'
+if [ "$(uname -s)" = "Darwin" ] ; then
+osascript <<END
+    tell app "Terminal"
+        do script "aws --profile ${AWS_PROFILE} --region eu-west-1 ssm start-session --target ${BASTION_TARGET}"
+        do script "aws --profile ${AWS_PROFILE} --region eu-west-1 ssm start-session --target ${BASTION_TARGET} --document-name AWS-StartPortForwardingSession --parameters '{\"portNumber\":[\"5432\"],\"localPortNumber\":[\"5434\"]}'"
+    end tell
+END
+
+else
+    SH="gnome-terminal  -- "
+    ${SH} aws --profile ${AWS_PROFILE} --region eu-west-1 ssm start-session --target ${BASTION_TARGET}
+    ${SH} aws --profile ${AWS_PROFILE} --region eu-west-1 ssm start-session --target ${BASTION_TARGET} --document-name AWS-StartPortForwardingSession --parameters '{"portNumber":["5432"],"localPortNumber":["5434"]}'
+fi
+
 echo 
 echo "☑️  Run the following command in the terminal with the sh prompt:"
 echo "    socat TCP-LISTEN:5432,reuseaddr,fork TCP4:${RDS_ADDRESS}:5432"
