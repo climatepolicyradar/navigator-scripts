@@ -21,17 +21,17 @@ from slugify import slugify
 
 REQUIRED_COLUMNS = [
     "Category",
-    "Submission type",
-    "Family name",
-    "Document title",
+    "Submission Type",
+    "Family Name",
+    "Document Title",
     "Documents",
     "Author",
-    "Author type",
+    "Author Type",
     "Geography",
     "Geography ISO",
     "Date",
-    "Document role",
-    "Document variant",
+    "Document Role",
+    "Document Variant",
     "Language",
     "CPR Collection ID",
     "CPR Document ID",
@@ -42,6 +42,7 @@ EXTRA_COLUMNS = [
     "CPR Document Slug",
     "CPR Document Status",
     "md5sum",
+    "Download URL",
 ]
 
 
@@ -69,15 +70,18 @@ def _read_existing_data(
                 print(f"Error on row {row_count}: no category specified")
                 errors = True
 
-            if not row["CPR Document ID"].strip():
-                print(f"Error on row {row_count}: no ID specified")
-                errors = True
+            if row["CPR Document ID"].strip():
+                # Error if we have more that one doc per family
+                vals = row["CPR Document ID"].strip().split(".")
+                if len(vals) != 4 or vals[-1] != "0":
+                    print(f"Unexpected id {vals}")
+                    errors = True
 
-            if not row["Document title"].strip():
+            if not row["Document Title"].strip():
                 print(f"Error on row {row_count}: no document title specified")
                 errors = True
 
-            family_name = row.get("Family name", "").strip()
+            family_name = row.get("Family Name", "").strip()
             cpr_family_id = row.get("CPR Family ID", "").strip()
             cpr_family_slug = row.get("CPR Family Slug", "").strip()
             cpr_document_id = row.get("CPR Document ID", "").strip()
@@ -179,9 +183,17 @@ def _process_csv(
         reader = csv.DictReader(csv_file)
         row_count = 0 + row_offset
         for row in reader:
+            index = row_count
             row_count += 1
-            cpr_document_id = row["CPR Document ID"].strip()
-            doc_title = row["Document title"].strip()
+
+            if not row["CPR Document ID"].strip():
+                # Generate the document id if its missing
+                cpr_document_id = f"CCLW.{row['Author Type'].lower()}.{row_count}.0"
+                print(f"Generated new ID: {cpr_document_id} ")
+            else:
+                cpr_document_id = row["CPR Document ID"].strip()
+
+            doc_title = row["Document Title"].strip()
 
             # If CPR Document Slug does not already exist, populate it
             if not (cpr_document_slug := row.get("CPR Document Slug", "").strip()):
@@ -189,14 +201,15 @@ def _process_csv(
                 slug_base = slugify(doc_title)
                 cpr_document_slug = _generate_slug(slug_base, existing_slugs)
 
+
             # A family comes from a single name
-            family_name = row["Family name"].strip()
+            family_name = row["Family Name"].strip()
 
             if not (cpr_family_id := row.get("CPR Family ID", "").strip()):
                 existing_family_id = existing_family_info[family_name]["CPR Family ID"]
                 if existing_family_id is None:
                     print(f"calculating CPR family id for row {row_count}")
-                    cpr_family_id = f"UNFCCC.family.{row_count}.0"
+                    cpr_family_id = f"UNFCCC.family.{index}.0"
                     existing_family_info[family_name]["CPR Family ID"] = cpr_family_id
                 else:
                     cpr_family_id = existing_family_id
@@ -240,7 +253,7 @@ def main():
     documents_file_path = Path(sys.argv[1]).absolute()
     row_offset = int(sys.argv[2])
     processed_rows = _process_csv(documents_file_path, row_offset)
-    _write_file(processed_rows, Path(f"{sys.argv[1]}_processed"))
+    _write_file(processed_rows, Path(f"{sys.argv[1]}_processed.csv"))
     print("DONE")
 
 
