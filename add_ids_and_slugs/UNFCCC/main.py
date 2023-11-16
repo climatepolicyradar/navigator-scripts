@@ -71,7 +71,7 @@ def _read_existing_data(
                 errors = True
 
             if row["CPR Document ID"].strip():
-                # Error if we have more that one doc per family
+                # Error if we have more than one doc per family
                 vals = row["CPR Document ID"].strip().split(".")
                 if len(vals) != 4 or vals[-1] != "0":
                     print(f"Unexpected id {vals}")
@@ -188,7 +188,7 @@ def _process_csv(
 
             if not row["CPR Document ID"].strip():
                 # Generate the document id if its missing
-                cpr_document_id = f"CCLW.{row['Author Type'].lower()}.{row_count}.0"
+                cpr_document_id = f"UNFCCC.{row['Author Type'].lower()}.{index}.0"
                 print(f"Generated new ID: {cpr_document_id} ")
             else:
                 cpr_document_id = row["CPR Document ID"].strip()
