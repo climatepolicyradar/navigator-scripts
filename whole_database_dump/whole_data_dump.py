@@ -24,6 +24,12 @@ SQLALCHEMY_DATABASE_URI = os.getenv("DATABASE_URL", "")
 if not SQLALCHEMY_DATABASE_URI or SQLALCHEMY_DATABASE_URI == "":
     raise RuntimeError("'{DATABASE_URL}' environment variable must be set")
 
+if AWS_ENVIRONMENT == "staging":
+    PUBLIC_APP_URL = "https://app.dev.climatepolicyradar.org"
+else:
+    PUBLIC_APP_URL = "https://app.climatepolicyradar.org"
+url_base = f"{PUBLIC_APP_URL}/documents/"
+
 
 def connect_to_postgres(database_url: str) -> Union[sqlalchemy.engine.Connection, bool]:
     try:
@@ -45,6 +51,16 @@ def get_whole_database_dump(
     with conn, conn.begin():
         df = pd.read_sql_query(sql_query_file, conn)
         return df
+
+
+def replace_slug_with_qualified_url(
+    df: pd.DataFrame, url_cols: list[str] = ["Family Slug", "Document Slug"]
+) -> pd.DataFrame:
+    for col in url_cols:
+        df[col] = url_base + df[col].astype(str)
+
+    df.columns = df.columns.str.replace("Slug", "URL")
+    return df
 
 
 def convert_dump_to_csv(df: pd.DataFrame):
@@ -128,6 +144,7 @@ if __name__ == "__main__":
 
     # 2. Execute the infinite query and create CSV data.
     df = get_whole_database_dump(conn)
+    df = replace_slug_with_qualified_url(df)
     df_as_csv = convert_dump_to_csv(df)
 
     # 3. Connect to AWS.
