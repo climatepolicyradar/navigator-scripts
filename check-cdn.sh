@@ -1,4 +1,21 @@
 #!/bin/bash
+######################################################################################
+# Check CDN Script
+#
+# This script checks for any physical documents that have no CDN object.
+#
+# Prerequisites:
+# Configure your environment so that you can `psql` to th  database of your choice.
+# This means configuring the following:
+# 
+# ```ini
+# PGPASSWORD=password
+# PGUSER=navigator
+# PGHOST=localhost
+# PGPORT=5432
+# ```
+######################################################################################
+
 
 rm_existing() {
 	[ -f $1 ] && rm $1 || echo "$1 Clean"
