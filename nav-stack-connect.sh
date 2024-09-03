@@ -4,9 +4,18 @@
 # See: docs/nav-stack-connect.md
 ###############################################################################
 
+# Check if session-manager-plugin is installed
+if ! command -v session-manager-plugin &> /dev/null
+then
+    echo "Error: session-manager-plugin is not installed or not in PATH"
+    echo "Please install it and try again"
+    echo "Follow https://docs.aws.amazon.com/systems-manager/latest/userguide/session-manager-working-with-install-plugin.html"
+    exit 1
+fi
+
 OUTPUT=$(mktemp)
 
-if [ -z "${AWS_PROFILE}" ] ; then  
+if [ -z "${AWS_PROFILE}" ] ; then
     PS3="No AWS_PROFILE set, type one here: "
 
     select aws_profile in staging prod production q
@@ -35,7 +44,7 @@ pulumi stack ls
 echo
 echo "🔨 Getting config..."
 
-pulumi stack output > ${OUTPUT} 
+pulumi stack output > ${OUTPUT}
 DB_USER=$(pulumi config get backend:rds_username)
 DB_PASS=$(pulumi config get backend:rds_password)
 RDS_ADDRESS=$(pulumi config get backend:rds_address)
@@ -75,7 +84,7 @@ else
     ${SH} aws --profile ${AWS_PROFILE} --region eu-west-1 ssm start-session --target ${BASTION_TARGET} --document-name AWS-StartPortForwardingSession --parameters '{"portNumber":["5432"],"localPortNumber":["5434"]}'
 fi
 
-echo 
+echo
 echo "☑️  Run the following command in the terminal with the sh prompt:"
 echo "    socat TCP-LISTEN:5432,reuseaddr,fork TCP4:${RDS_ADDRESS}:5432"
 
