@@ -49,7 +49,7 @@ DB_USER=$(pulumi config get backend:rds_username)
 DB_PASS=$(pulumi config get backend:rds_password)
 RDS_ADDRESS=$(pulumi config get backend:rds_address)
 RDS_DB=$(pulumi config get backend:rds_database)
-BASTION_TARGET=$(grep bastion.id ${OUTPUT} | cut -d ' ' -f7 )
+BASTION_TARGET=$(grep "bastion.id" ${OUTPUT} | awk '{print $NF}')
 echo
 echo "🔨 Building db connection string..."
 
